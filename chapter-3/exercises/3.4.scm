@@ -36,15 +36,7 @@
 
 (p ((acc 'secret-password 'withdraw) 50))
 
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
-(p ((acc 'some-other-password 'withdraw) 60))
+(repeat 10
+	(lambda () (p ((acc 'some-other-password 'withdraw) 60)))
+	) ; end repeat
 
-(p ((acc 'secret-password 'deposit) 40))
-(p ((acc 'secret-password 'withdraw) 60))
-(p ((acc 'secret-password 'withdraw) 80))
