@@ -1,4 +1,4 @@
-(load "../lib/helper.scm")
+(load "../../lib/helper.scm")
 (load "rand.scm")
 
 (define (estimate-pi trials)

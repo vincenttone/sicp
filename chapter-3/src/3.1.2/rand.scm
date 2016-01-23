@@ -1,4 +1,6 @@
-(load "../lib/helper.scm")
+(load "../../lib/helper.scm")
+
+(define random-init 12315121)
 
 (define (rand-update x)
   (let ((a 1231) (b 789) (m 465511))
@@ -6,11 +8,8 @@
 	) ; end let
   ) ; end define
 
-(define (random-init)
-  12315121) ; end define
-
 (define rand
-  (let ((x (random-init)))
+  (let ((x random-init))
 	(lambda ()
 	  (set! x (rand-update x))
 	  x) ; end lambda
