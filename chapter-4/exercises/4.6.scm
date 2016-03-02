@@ -17,13 +17,13 @@
 (define (let-def-vars definition)
   (if (null? definition)
 	  '()
-	  (cons (car let-def-var) (let-def-var (cdr definition))))
+	  (cons (caar definition) (let-def-var (cdr definition))))
   )
 
 (define (let-def-exprs definition)
   (if (null? definition)
 	  '()
-	  (cons (cdr let-def-var) (let-def-var (cdr definition))))
+	  (cons (cadr (car definition)) (let-def-var (cdr definition))))
   )
 
 (define (let-combination exp env)
