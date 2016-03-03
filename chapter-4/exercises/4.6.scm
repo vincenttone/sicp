@@ -11,7 +11,7 @@
   )
 
 (define (let-body exp)
-  (cddr exp)
+  (caddr exp)
   )
 
 (define (let-def-vars definition)
