@@ -20,11 +20,11 @@
 (define (if-predicate exp) 
   (if (null? (cdddr exp))
 	  (cadr exp)
-	  (caddr exp))
+	  (caddr exp)))
 (define (if-consequent exp)
   (if (null? (cdddr exp))
 	  (car exp)
-	  (cadr exp))
+	  (cadr exp)))
 (define (if-alternative exp)
   (if (null? (cdddr exp))
 	  'false
