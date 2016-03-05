@@ -15,8 +15,12 @@
 ;; let-combination 无法递归增加lambda(let) body
 (define (let-nested-lets exp)
   (define (make-lets defs body)
-	(if (null? defs) body
-		(list 'let (list (car defs)) (make-lets (cdr defs))))
+	(if (null? defs)
+		body
+		(list 'let (list (car defs)) (make-lets (cdr defs) body)))
 	)
   (make-lets (let*-def exp) (let*-body exp))
   )
+
+(define (eval-let* exp env)
+  (eval (let-nested-lets exp) env))
