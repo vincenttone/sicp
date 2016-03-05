@@ -1,4 +1,4 @@
- (define (make-frame variables values) 
+(define (make-frame variables values) 
    (if (= (length variables) (length values))
 	   (map cons variables values)
 	   (error "length mismatch -- MAKE-FRAME" variables values)))
@@ -7,7 +7,7 @@
 (define (frame-values frame) (map cdr frame))
 
 (define (add-binding-to-frame! var val frame)
-  (set-car! frame (cons (cons var val) (car frame))))
+  (set-car! frame (cons (list var val) (car frame))))
 
 (define (set-variable-value! var val env)
   (define (env-loop env)
