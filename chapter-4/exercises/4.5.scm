@@ -4,7 +4,7 @@
   (eq? (cond-predicate clause) 'else))
 (define (cond-predicate clause) (car clause))
 (define (cond-actions clause) (cdr clause))
-(define (ex-cond? clause) (eq? (cadr clause) "=>"))
+(define (ex-cond? clause) (eq? (cadr clause) '=>))
 (define (ex-cond-action clause) (caddr clause))
 
 (define (cond->if exp)
@@ -22,7 +22,8 @@
                        clauses))
 			(if (ex-cond? first)
 				(make-if (cond-predicate first)
-						 (list (ex-cond-action (cond-predicate first))))
+						 (list (ex-cond-action first) (cond-predicate first))
+						 (expand-clauses rest))
 				(make-if (cond-predicate first)
 						 (sequence->exp (cond-actions first))
 						 (expand-clauses rest)))))))
