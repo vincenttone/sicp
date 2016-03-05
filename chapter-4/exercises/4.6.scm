@@ -11,23 +11,26 @@
   )
 
 (define (let-body exp)
-  (caddr exp)
+  (cddr exp)
   )
 
 (define (let-def-vars definition)
   (if (null? definition)
 	  '()
-	  (cons (caar definition) (let-def-var (cdr definition))))
+	  (cons (caar definition) (let-def-vars (cdr definition))))
   )
 
 (define (let-def-exprs definition)
   (if (null? definition)
 	  '()
-	  (cons (cadr (car definition)) (let-def-var (cdr definition))))
+	  (cons (cadr (car definition)) (let-def-exprs (cdr definition))))
   )
 
 (define (let-combination exp env)
-  (list (make-lambda (let-def-vars (let-definition exp))
+  (cons (make-lambda (let-def-vars (let-definition exp))
 					 (let-body exp))
 		(let-def-exprs (let-definition exp)))
   )
+
+(define (eval-let exp env)
+  (eval (let-combination exp env) env))
