@@ -1,4 +1,3 @@
-;; use table
 (define operation-list 
   (list (cons 'variable? 'lookup-variable-value)
 		(cons 'quote? 'text-of-quotation)
