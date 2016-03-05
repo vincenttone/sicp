@@ -1,3 +1,4 @@
+;;;; !!! not tested !!!
 ;; ((a b +) (x y >) if)
 ;; ((a b -) (a b +) (x y >) if)
 
@@ -9,7 +10,7 @@
 (define (last exp)
   (if (null? (cdr exp))
 	  exp
-	  (last (cdr exp)))
+	  (last (cdr exp))))
 
 (define (eval-if exp env)
   (if (true? (eval (if-predicate exp) env))
@@ -17,7 +18,7 @@
       (eval (if-alternative exp) env)))
 
 (define (if? exp) (tagged-list? exp 'if))
-(define (if-predicate exp) 
+(define (if-predicate exp)
   (if (null? (cdddr exp))
 	  (cadr exp)
 	  (caddr exp)))
