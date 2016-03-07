@@ -1,6 +1,6 @@
 (define true #t)
 (define false #f)
-
+(define apply-in-underlying-scheme apply)
 (define operation-list 
   (list (cons (lambda (exp) (variable? exp))
 			  (lambda (exp env) (lookup-variable-value exp env)))
@@ -25,6 +25,8 @@
 			  (lambda (exp env) (eval-let exp env)))
 		(cons (lambda (exp) (let*? exp))
 			  (lambda (exp env) (eval-let* exp env)))
+		(cons (lambda (exp) (unbound? exp))
+			  (lambda (exp env) (eval-unbound exp env)))
 		(cons (lambda (exp) (while? exp))
 			  (lambda (exp env) (eval-while exp env)))
 		(cons (lambda (exp) (begin? exp))
@@ -340,28 +342,25 @@
 (define (first-frame env) (car env))
 (define the-empty-environment '())
 
-;; (define (make-frame variables values)
-;;   (cons variables values))
-;; (define (frame-variables frame) (car frame))
-;; (define (frame-values frame) (cdr frame))
-;; (define (add-binding-to-frame! var val frame)
-;;   (set-car! frame (cons var (car frame)))
-;;   (set-cdr! frame (cons val (cdr frame))))
+(define (make-frame variables values)
+  (cons variables values))
+(define (frame-variables frame) (car frame))
+(define (frame-values frame) (cdr frame))
+(define (add-binding-to-frame! var val frame)
+  (set-car! frame (cons var (car frame)))
+  (set-cdr! frame (cons val (cdr frame))))
 
 ;;;; updated frame
-(define (make-frame variables values) 
-  (if (= (length variables) (length values))
-	  (map cons variables values)
-	  (error "length mismatch -- MAKE-FRAME" variables values)))
+;; (define (make-frame variables values) 
+;;   (if (= (length variables) (length values))
+;; 	  (cons '*frame* (map cons variables values))
+;; 	  (error "length mismatch -- MAKE-FRAME" variables values)))
 
-(define (frame-variables frame) (map car frame))
-(define (frame-values frame) (map cdr frame))
+;; (define (frame-variables frame) (map car (cdr frame)))
+;; (define (frame-values frame) (map cdr (cdr frame)))
 
-(define (add-binding-to-frame! var val frame)
-  (if (null? frame)
-	  (set! frame (list (list var val)))
-	  (set-car! frame (cons (list var val) (car frame)))))
-
+;; (define (add-binding-to-frame! var val frame)
+;;   (set-cdr! frame (cons (cons var val) (cdr frame))))
 ;;;;
 
 (define (extend-environment vars vals base-env)
@@ -371,20 +370,20 @@
           (error "Too many arguments supplied" vars vals)
           (error "Too few arguments supplied" vars vals))))
 
-(define (lookup-variable-value var env)
-  (define (env-loop env)
-    (define (scan vars vals)
-      (cond ((null? vars)
-             (env-loop (enclosing-environment env)))
-            ((eq? var (car vars))
-             (car vals))
-            (else (scan (cdr vars) (cdr vals)))))
-    (if (eq? env the-empty-environment)
-        (error "Unbound variable" var)
-        (let ((frame (first-frame env)))
-          (scan (frame-variables frame)
-                (frame-values frame)))))
-  (env-loop env))
+;; (define (lookup-variable-value var env)
+;;   (define (env-loop env)
+;;     (define (scan vars vals)
+;;       (cond ((null? vars)
+;;              (env-loop (enclosing-environment env)))
+;;             ((eq? var (car vars))
+;;              (car vals))
+;;             (else (scan (cdr vars) (cdr vals)))))
+;;     (if (eq? env the-empty-environment)
+;;         (error "Unbound variable" var)
+;;         (let ((frame (first-frame env)))
+;;           (scan (frame-variables frame)
+;;                 (frame-values frame)))))
+;;   (env-loop env))
 
 ;; (define (set-variable-value! var val env)
 ;;   (define (env-loop env)
@@ -413,37 +412,111 @@
 ;;           (frame-values frame))))
 
 ;;;; updated frame
+;; (define (set-variable-value! var val env)
+;;   (define (assoc var frame)
+;; 	(if (null? frame)
+;; 		false
+;; 		(if (eq? var (caar frame))
+;; 			(car frame)
+;; 			(assoc var (cdr frame)))))
+;;   (define (env-loop env)
+;;     (if (eq? env the-empty-environment)
+;;         (error "Unbound variable -- SET!" var)
+;;         (let* ((frame (first-frame env))
+;; 			   (ret-pair (assoc var (cdr frame))))
+;;           (if ret-pair
+;; 			  (set-cdr! ret-pair val)
+;; 			  (env-loop (enclosing-environment env))))))
+;;   (env-loop env))
+
+;; (define (define-variable! var val env)
+;;   (define (assoc var frame)
+;; 	(if (null? frame)
+;; 		false
+;; 		(if (eq? var (caar frame))
+;; 			(car frame)
+;; 			(assoc var (cdr frame)))))
+;;   (let* ((frame (first-frame env))
+;; 		 (ret-pair (assoc var (cdr frame))))
+;; 	(if ret-pair
+;; 		(set-cdr! ret-pair val)
+;; 		(add-binding-to-frame! var val frame))))
+;;;;
+
+;;;; 4.12
+(define (lookup-variable-value-with-callback var val env match-callback end-env-callback)
+  (let ((pre-frame the-empty-environment))
+	(define (env-loop env)
+	  (define (scan vars vals)
+		(cond ((null? vars)
+			   (env-loop (enclosing-environment env)))
+			  ((eq? var (car vars))
+			   (match-callback vars vals))
+			  (else (scan (cdr vars) (cdr vals)))))
+	  (if (eq? env the-empty-environment)
+		  (end-env-callback pre-frame)
+		  (let ((frame (first-frame env)))
+			(set! pre-frame frame)
+			(scan (frame-variables frame)
+				  (frame-values frame)))))
+  (env-loop env)))
+
+(define (lookup-variable-value var env)
+  (lookup-variable-value-with-callback var
+									   false
+									   env
+									   (lambda (vars vals) (car vals))
+									   (lambda (pre-frame) (error "Unbound variable" var))
+									   ))
+
 (define (set-variable-value! var val env)
-  (define (env-loop env)
-    (define (scan frame)
-      (cond ((null? frame)
-             (env-loop (enclosing-environment env)))
-            ((eq? var (car (car frame)))
-             (set-car! frame (cons var val)))
-            (else (scan (cdr frame)))))
-    (if (eq? env the-empty-environment)
-        (error "Unbound variable -- SET!" var)
-        (let ((frame (first-frame env)))
-          (scan frame))))
-  (env-loop env))
+  (lookup-variable-value-with-callback var
+									   val
+									   env
+									   (lambda (vars vals) (set-car! vals val))
+									   (lambda (pre-frame) (error "Unbound variable -- SET!" var))
+									   ))
 
 (define (define-variable! var val env)
-  (let ((frame (first-frame env)))
-    (define (scan frame)
-      (cond ((null? frame)
-             (add-binding-to-frame! var val frame))
-            ((eq? var (car (car frame)))
-             (set-car! frame (cons var val)))
-            (else (scan (cdr frame)))))
-    (scan frame)))
-;;;;
+  (lookup-variable-value-with-callback var
+									   val
+									   env
+									   (lambda (vars vals) (set-car! vals val))
+									   (lambda (pre-frame) (add-binding-to-frame! var val pre-frame))
+									   ))
+;;; end 4.12
+
+;;; begin 4.13
+(define (unbound? expr) (tagged-list? expr 'unbound))
+(define (unbind-variable expr env) (make-unbound! (cadr expr) env))
+(define (make-unbound! var env)
+  (define (env-loop env)
+    (define (scan vars vals pre-vars pre-vals)
+      (cond ((null? vars)
+             (error "Unbound variable -- UNBOUND!" var))
+            ((eq? var (car vars))
+			 (set-car! env (cons (append pre-vars (cdr vars)) (append pre-vals (cdr vals)))))
+            (else (scan (cdr vars)
+						(cdr vals)
+						(cons (car vars) pre-vars)
+						(cons (car vals) pre-vals)))))
+    (if (eq? env the-empty-environment)
+        (error "Unbound variable -- UNBOUND!" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)
+				'()
+				'()))))
+  (env-loop env))
+(define (eval-unbound expr env)
+  (make-unbound! (cadr expr) env))
+;;; end 4.13
 
 (define primitive-procedures
   (list (list 'car car)
         (list 'cdr cdr)
         (list 'cons cons)
-        (list 'null? null?)
-        ))
+        (list 'null? null?)))
 
 (define (primitive-procedure-names)
   (map car
