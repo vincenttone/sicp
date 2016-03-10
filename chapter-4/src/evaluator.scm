@@ -12,6 +12,8 @@
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
                          env))
+		((let? exp)
+		 (eval-let exp env))
         ((begin? exp)
          (eval-sequence (begin-actions exp) env))
         ((cond? exp) (eval (cond->if exp) env))
@@ -26,11 +28,11 @@
          (apply-primitive-procedure procedure arguments))
         ((compound-procedure? procedure)
          (eval-sequence
-           (procedure-body procedure)
-           (extend-environment
-             (procedure-parameters procedure)
-             arguments
-             (procedure-environment procedure))))
+		  (procedure-body procedure)
+		  (extend-environment
+		   (procedure-parameters procedure)
+		   arguments
+		   (procedure-environment procedure))))
         (else
          (error
           "Unknown procedure type -- APPLY" procedure))))
@@ -59,8 +61,8 @@
 
 (define (eval-definition exp env)
   (define-variable! (definition-variable exp)
-                    (eval (definition-value exp) env)
-                    env)
+	(eval (definition-value exp) env)
+	env)
   'ok)
 
 (define (self-evaluating? exp)
@@ -167,6 +169,84 @@
 (define (false? x)
   (eq? x false))
 
+(define (let? exp)
+  (tagged-list? exp 'let))
+
+(define (let-definition exp)
+  (cadr exp)
+  )
+
+(define (let-body exp)
+  (cddr exp)
+  )
+
+(define (let-def-vars definition)
+  (if (null? definition)
+	  '()
+	  (cons (caar definition) (let-def-vars (cdr definition))))
+  )
+
+(define (let-def-exprs definition)
+  (if (null? definition)
+	  '()
+	  (cons (cadr (car definition)) (let-def-exprs (cdr definition))))
+  )
+
+(define (eval-let exp env)
+  ;(let-combination exp env))
+  (eval (let-combination exp env) env))
+
+(define (let*? exp)
+  (tagged-list? exp 'let*))
+
+(define (let*-def exp) (cadr exp))
+(define (let*-body exp) (caddr exp))
+
+;; let-combination 无法递归增加lambda(let) body
+(define (let-nested-lets exp)
+  (define (make-lets defs body)
+	(if (null? defs)
+		body
+		(list 'let (list (car defs)) (make-lets (cdr defs) body)))
+	)
+  (make-lets (let*-def exp) (let*-body exp))
+  )
+
+(define (eval-let* exp env)
+  (eval (let-nested-lets exp) env))
+
+;;;; named let
+(define (named-let? exp)
+  (and (tagged-list? exp 'let) (symbol? (cadr exp))))
+
+(define (named-let-name exp)
+  (cadr exp))
+
+(define (named-let-def exp)
+  (caddr exp)
+  )
+
+(define (named-let-body exp)
+  (cdddr exp)
+  )
+
+(define (named-let->func exp)
+  (cons 'define
+		(cons (cons (named-let-name exp)
+					(let-def-vars (named-let-def exp)))
+			  (named-let-body exp))))
+
+;;;; let-combination
+(define (let-combination exp env)
+  (if (named-let? exp) (sequence->exp (list (named-let->func exp)
+											(cons (named-let-name exp)
+												  (let-def-exprs (named-let-def exp)))
+											))
+	  (cons (make-lambda (let-def-vars (let-definition exp))
+						 (let-body exp))
+			(let-def-exprs (let-definition exp))))
+  )
+
 (define (make-procedure parameters body env)
   (list 'procedure parameters body env))
 (define (compound-procedure? p)
@@ -200,7 +280,9 @@
       (cond ((null? vars)
              (env-loop (enclosing-environment env)))
             ((eq? var (car vars))
-             (car vals))
+			 (if (eq? '*unassigned* (car vals))
+				 (error "Unassigend variable" var)
+				 (car vals)))
             (else (scan (cdr vars) (cdr vals)))))
     (if (eq? env the-empty-environment)
         (error "Unbound variable" var)
@@ -234,6 +316,31 @@
             (else (scan (cdr vars) (cdr vals)))))
     (scan (frame-variables frame)
           (frame-values frame))))
+
+(define (scan-out-defines procs)
+  (let ((inits '()) (body '()))
+	(define (scan-out-let-struct procs)
+	  (cond ((not (null? procs))
+			 (let ((first-proc (car procs)))
+			   (cond ((pair? first-proc)
+					  (cond ((eq? 'define (car first-proc))
+							 (if (pair? (cadr first-proc)) ;; lambda
+								 (begin (set! inits (cons (list (car (cadr first-proc)) '*unassigned*) inits))
+										(set! body 
+											  (cons (list 'set!
+														  (car (cadr first-proc))
+														  (make-lambda (cdr (cadr first-proc)) (cddr first-proc))) body)))
+								 (begin (set! inits (cons (list (cadr first-proc) '*unassigned*) inits))
+										(set! body (cons (list 'set! (cadr first-proc) (caddr first-proc)) body)))))
+							(else (set! body (cons first-proc body)))))
+
+					 (else (set! body (cons first-proc body))))
+			   )
+			 (scan-out-let-struct (cdr procs))))
+	  (set! inits (reverse inits))
+	  (set! body (reverse body)))
+	(scan-out-let-struct procs)
+	(cons 'let (cons inits body))))
 
 (define primitive-procedures
   (list (list 'car car)
