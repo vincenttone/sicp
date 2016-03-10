@@ -47,3 +47,8 @@
 
 (display (scan-out-defines (list (list 'define (list 'm 'a 'b) (list '+ 'a 'b)) (list 'define 'n 100) (list 'define 'o 12312) 10000)))
 (newline)
+
+;; make-procedure 里面调用可以在分析语法的时候把scan-out-defines的结果保存起来(如果是在define的方法里面)，多次调用的时候不需要重复转换
+;; 最上层的 (define (x ...) ...)会转化为lambda，lambda会调用make-procedure产生一个procedure，这个procedure会放在变量表里
+;; 如果放在make-procedure，apply的时候就是scan-out-defines后的procedure
+;; 如果放在procedure-body，则每次apply x方法的时候都需要调用scan-out-defines做转换
